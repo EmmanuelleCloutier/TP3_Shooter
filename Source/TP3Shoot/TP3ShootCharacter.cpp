@@ -48,7 +48,8 @@ ATP3ShootCharacter::ATP3ShootCharacter()
 
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
+	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	// Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
 	// Create SK_Gun
@@ -124,26 +125,39 @@ void ATP3ShootCharacter::Fire()
 
 	if (IsAiming)
 	{
+		constexpr double FocalDistance = 1024.0F;
 
-		Start = FollowCamera->GetComponentLocation();
+		FVector CamLoc;
+		FRotator CamRot;
 
-		ForwardVector = FollowCamera->GetForwardVector();
+		Controller->GetPlayerViewPoint(/*Out*/CamLoc, /*Out*/CamRot);
 
-		LineTraceEnd = Start + (ForwardVector * 10000);
-	}
-	else {
+		const FVector AimDirection = CamRot.Vector().GetSafeNormal();
+		const FVector FocalLoc = CamLoc + (AimDirection * FocalDistance);
 
-		// Get muzzle location
-		Start = SK_Gun->GetSocketLocation("MuzzleFlash");
+		const FVector WeaponLoc = Start = SK_Gun->GetSocketLocation("MuzzleFlash");
+		CamLoc = FocalLoc + (WeaponLoc - FocalLoc | AimDirection) * AimDirection;
 
-		// Get Rotation Forward Vector
-		ForwardVector = FollowCamera->GetForwardVector();
+		const FTransform TargetTransform = FTransform((FocalLoc - WeaponLoc).Rotation(), WeaponLoc);
+		FVector ShootDirection = TargetTransform.GetUnitAxis(EAxis::X);
 
-		// Get End Point
-		LineTraceEnd = Start + (ForwardVector * 10000);
+
+		FHitResult HitResult;
+		FCollisionQueryParams CollisionParams;
+		CollisionParams.AddIgnoredActor(this);
+
+		const bool bHasResult = GetWorld()->LineTraceSingleByChannel(HitResult, CamLoc,
+		                                                             TargetTransform.GetTranslation() + (ShootDirection
+			                                                             * FocalDistance * FocalDistance),
+		                                                             ECC_Visibility, CollisionParams);
+		if (bHasResult)
+		{
+			FireParticle(Start, HitResult.Location);
+			//hit the actor
+			//HitResult.GetActor()
+		}
 	}
 }
-
 
 
 void ATP3ShootCharacter::BoostSpeed()
@@ -152,14 +166,13 @@ void ATP3ShootCharacter::BoostSpeed()
 	GetCharacterMovement()->MaxWalkSpeed = 800.f;
 
 	GetWorld()->GetTimerManager().SetTimer(BoostSpeedTimer, [&]()
-		{
-			// Set Max walking speed to 500
-			GetCharacterMovement()->MaxWalkSpeed = 500.f;
-			
-			// Clear existing timer boost speed
-			GetWorldTimerManager().ClearTimer(BoostSpeedTimer);
+	{
+		// Set Max walking speed to 500
+		GetCharacterMovement()->MaxWalkSpeed = 500.f;
 
-		}, 4, false);
+		// Clear existing timer boost speed
+		GetWorldTimerManager().ClearTimer(BoostSpeedTimer);
+	}, 4, false);
 }
 
 void ATP3ShootCharacter::RemoveSpeedBoost()
@@ -171,21 +184,18 @@ void ATP3ShootCharacter::RemoveSpeedBoost()
 
 void ATP3ShootCharacter::FireParticle(FVector Start, FVector Impact)
 {
-	if (!ParticleStart || !ParticleImpact) return;
-
 	FTransform ParticleT;
 
 	ParticleT.SetLocation(Start);
 
 	ParticleT.SetScale3D(FVector(0.25, 0.25, 0.25));
-
-	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleStart, ParticleT, true);
+	if (ParticleStart)
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleStart, ParticleT, true);
 
 	// Spawn particle at impact point
 	ParticleT.SetLocation(Impact);
-
-	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleImpact, ParticleT, true);
-
+	if (ParticleImpact)
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleImpact, ParticleT, true);
 }
 
 void ATP3ShootCharacter::TurnAtRate(float Rate)
@@ -216,12 +226,12 @@ void ATP3ShootCharacter::MoveForward(float Value)
 
 void ATP3ShootCharacter::MoveRight(float Value)
 {
-	if ( (Controller != nullptr) && (Value != 0.0f) )
+	if ((Controller != nullptr) && (Value != 0.0f))
 	{
 		// find out which way is right
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
-	
+
 		// get right vector 
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		// add movement in that direction
