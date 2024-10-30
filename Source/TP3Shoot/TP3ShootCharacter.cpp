@@ -6,9 +6,8 @@
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
-#include "Components/TimelineComponent.h"
+#include "Engine/DamageEvents.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
 
 
@@ -60,6 +59,20 @@ ATP3ShootCharacter::ATP3ShootCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+}
+
+float ATP3ShootCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,AActor* DamageCauser)
+{
+	Health -= DamageAmount;
+	OnHit_Event.Broadcast(Health, MaxHealth);
+	
+	const bool IsDead = Health <= 0;
+
+	if (IsDead)
+	{
+		this->K2_DestroyActor();
+	}
+	return IsDead ? 0 : DamageAmount;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -153,6 +166,8 @@ void ATP3ShootCharacter::Fire()
 		if (bHasResult)
 		{
 			FireParticle(Start, HitResult.Location);
+
+			HitResult.GetActor()->TakeDamage(2,FDamageEvent(), GetInstigatorController(), this);
 			//hit the actor
 			//HitResult.GetActor()
 		}

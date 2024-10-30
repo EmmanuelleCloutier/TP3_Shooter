@@ -10,16 +10,26 @@ UCLASS()
 class TP3SHOOT_API AAIControllerBase : public AAIController
 {
 	GENERATED_BODY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class UCustomAIPerceptionComponent* CustomAIPerceptionComponent;
 
 public:
-	// Sets default values for this actor's properties
 	AAIControllerBase();
 
 protected:
-	// Called when the game starts or when spawned
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI")
+	TObjectPtr<class UBehaviorTree> BehaviorTree;
+
+protected:
 	virtual void BeginPlay() override;
+	virtual void OnPossess(APawn* InPawn) override;
+	virtual void OnUnPossess() override;
+	
+	UFUNCTION()
+	void OnPerceptionChanged(AActor* InActor, uint8 StimulusID, bool bWasSuccessfullySensed);
+	UFUNCTION()
+	void OnPerceptionAgedPassed(AActor* InActor, uint8 StimulusID);
 
 public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	UCustomAIPerceptionComponent* GetAIPerception() const { return CustomAIPerceptionComponent; }
 };

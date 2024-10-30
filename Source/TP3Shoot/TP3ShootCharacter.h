@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GenericTeamAgentInterface.h"
 #include "GameFramework/Character.h"
 #include "TP3ShootCharacter.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHitSignature, const float, NewHealth, const float, MaxHealth);
+
 UCLASS(config=Game)
-class ATP3ShootCharacter : public ACharacter
+class ATP3ShootCharacter : public ACharacter, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 
@@ -19,16 +22,23 @@ class ATP3ShootCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
 
-
 public:
 	ATP3ShootCharacter();
 
+	UPROPERTY(BlueprintAssignable)
+	FOnHitSignature OnHit_Event;
+
+	virtual FGenericTeamId GetGenericTeamId() const override { return TeamID; }
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+	                         AActor* DamageCauser) override;
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Input)
 	float TurnRateGamepad;
 
-protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGenericTeamId TeamID;
 
+protected:
 	// Add a gun skeletal mesh component
 	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
 	class USkeletalMeshComponent* SK_Gun;
@@ -78,7 +88,6 @@ protected:
 	void StopAiming();
 
 	// Firing function
-	void Fire();
 
 	void BoostSpeed();
 
@@ -98,14 +107,20 @@ public:
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
 public:
-
 	// Is Aiming
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Aiming")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Aiming")
 	bool IsAiming;
 
 	// Is Firing
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Firing")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Firing")
 	bool IsFiring;
 
-};
+	UFUNCTION(BlueprintCallable)
+	void Fire();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Health =10;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxHealth =10;
+};
