@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TP3ShootCharacter.h"
+
+#include "BehaviorTree/BlackboardComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
@@ -9,6 +11,7 @@
 #include "Engine/DamageEvents.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Public/AIControllerBase.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -61,17 +64,26 @@ ATP3ShootCharacter::ATP3ShootCharacter()
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
 
-float ATP3ShootCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,AActor* DamageCauser)
+float ATP3ShootCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+                                     AActor* DamageCauser)
 {
 	Health -= DamageAmount;
 	OnHit_Event.Broadcast(Health, MaxHealth);
-	
+
 	const bool IsDead = Health <= 0;
 
 	if (IsDead)
 	{
 		this->K2_DestroyActor();
 	}
+	
+	//so here we say that if we are a AI and we got hit we want to be notify
+	else if (AAIControllerBase* AIControllerBase = Cast<AAIControllerBase>(Controller))
+	{
+		const FName TargetActor{TEXT("TargetActor")};
+		AIControllerBase->GetBlackboardComponent()->SetValueAsObject(TargetActor, DamageCauser);
+	}
+
 	return IsDead ? 0 : DamageAmount;
 }
 
@@ -167,7 +179,7 @@ void ATP3ShootCharacter::Fire()
 		{
 			FireParticle(Start, HitResult.Location);
 
-			HitResult.GetActor()->TakeDamage(2,FDamageEvent(), GetInstigatorController(), this);
+			HitResult.GetActor()->TakeDamage(2, FDamageEvent(), GetInstigatorController(), this);
 			//hit the actor
 			//HitResult.GetActor()
 		}
