@@ -106,6 +106,9 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
+	UFUNCTION()
+	void ResetHit();
+
 public:
 	// Is Aiming
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Aiming")
@@ -119,8 +122,12 @@ public:
 	void Fire();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Health =10;
+	float Health = 10;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxHealth =10;
+	float MaxHealth = 10;
+
+	FTimerHandle DamageCauserHandle;
+	UPROPERTY(EditAnywhere)
+	float DamageCauserListenDuration = 3.F;
 };

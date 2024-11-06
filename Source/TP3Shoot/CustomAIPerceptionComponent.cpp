@@ -32,7 +32,7 @@ void UCustomAIPerceptionComponent::OnTargetPerceptionChanged(AActor* InActor, FA
 	//Other sense added here
 }
 
-void UCustomAIPerceptionComponent::OnUpdatePerception_Sight( AActor* InActor, FAIStimulus InStimulus)
+void UCustomAIPerceptionComponent::OnUpdatePerception_Sight(AActor* InActor, FAIStimulus InStimulus)
 {
 	RegisterStimulus(InStimulus.Type, InStimulus);
 
@@ -44,25 +44,30 @@ void UCustomAIPerceptionComponent::OnUpdatePerception_Sight( AActor* InActor, FA
 		{
 			if (!InStimulus.WasSuccessfullySensed())
 			{
-				if (SenseConfig_Sight->GetMaxAge() > 0)
+				if (SenseConfig_Sight)
 				{
-					StimulusData->PerceptionDelegateHandle.BindUFunction(this, FName("OnPerceptionHandleUpdate"), InStimulus.Type);
-					GetTimerManger().SetTimer(StimulusData->TimerPerceptionHandle,StimulusData->PerceptionDelegateHandle, UpdateStimulusRate, true);
-				}
+					if (SenseConfig_Sight->GetMaxAge() > 0)
+					{
+						StimulusData->PerceptionDelegateHandle.BindUFunction(
+							this, FName("OnPerceptionHandleUpdate"), InStimulus.Type);
+						GetTimerManger().SetTimer(StimulusData->TimerPerceptionHandle,
+						                          StimulusData->PerceptionDelegateHandle, UpdateStimulusRate, true);
+					}
 
-				OnAIPerceptionChanged_Event.Broadcast(InActor,InStimulus.Type, false);
-			}
-			else
-			{
-				//Mean we have successfully sensed the target
-				StimulusData->ClearTimers(GetTimerManger());
-				OnAIPerceptionChanged_Event.Broadcast(InActor,InStimulus.Type, true);
+					OnAIPerceptionChanged_Event.Broadcast(InActor, InStimulus.Type, false);
+				}
+				else
+				{
+					//Mean we have successfully sensed the target
+					StimulusData->ClearTimers(GetTimerManger());
+					OnAIPerceptionChanged_Event.Broadcast(InActor, InStimulus.Type, true);
+				}
 			}
 		}
 	}
 }
 
-void UCustomAIPerceptionComponent::OnPerceptionHandleUpdate(const uint8& InStimulusID,  AActor* InActor)
+void UCustomAIPerceptionComponent::OnPerceptionHandleUpdate(const uint8& InStimulusID, AActor* InActor)
 {
 	if (FPerceptionData* StimulusData = StimulusMap.Find(InStimulusID))
 	{
@@ -70,7 +75,7 @@ void UCustomAIPerceptionComponent::OnPerceptionHandleUpdate(const uint8& InStimu
 		{
 			StimulusData->ClearTimers(GetTimerManger());
 
-			OnAIPerceptionAgedPassed_Event.Broadcast(InActor,InStimulusID);
+			OnAIPerceptionAgedPassed_Event.Broadcast(InActor, InStimulusID);
 		}
 	}
 }

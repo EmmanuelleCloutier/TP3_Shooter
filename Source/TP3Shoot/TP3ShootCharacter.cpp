@@ -74,14 +74,32 @@ float ATP3ShootCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 
 	if (IsDead)
 	{
+		if(EventInstigator)
+		{
+			if(AAIControllerBase* AIControllerBase = Cast<AAIControllerBase>(EventInstigator))
+			{
+				const FName TargetActor{TEXT("TargetActor")};
+				AIControllerBase->GetBlackboardComponent()->SetValueAsObject(TargetActor, nullptr);
+			}
+		}
+			
 		this->K2_DestroyActor();
 	}
-	
+
 	//so here we say that if we are a AI and we got hit we want to be notify
 	else if (AAIControllerBase* AIControllerBase = Cast<AAIControllerBase>(Controller))
 	{
 		const FName TargetActor{TEXT("TargetActor")};
+		const FName HitValue{TEXT("HasBeenHItRecently")};
+
 		AIControllerBase->GetBlackboardComponent()->SetValueAsObject(TargetActor, DamageCauser);
+		AIControllerBase->GetBlackboardComponent()->SetValueAsBool(HitValue, true);
+
+		GetWorld()->GetTimerManager().ClearTimer(DamageCauserHandle);
+		DamageCauserHandle.Invalidate();
+		
+		GetWorld()->GetTimerManager().SetTimer(DamageCauserHandle, this, &ThisClass::ResetHit,
+		                                       DamageCauserListenDuration, false);
 	}
 
 	return IsDead ? 0 : DamageAmount;
@@ -123,6 +141,19 @@ void ATP3ShootCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	PlayerInputComponent->BindAction("BoostSpeed", IE_Pressed, this, &ATP3ShootCharacter::BoostSpeed);
 	PlayerInputComponent->BindAction("BoostSpeed", IE_Released, this, &ATP3ShootCharacter::RemoveSpeedBoost);
 }
+
+void ATP3ShootCharacter::ResetHit()
+{
+	if (AAIControllerBase* AIControllerBase = Cast<AAIControllerBase>(Controller))
+	{
+		const FName HitValue{TEXT("HasBeenHItRecently")};
+		AIControllerBase->GetBlackboardComponent()->SetValueAsBool(HitValue, false);
+	}
+
+	GetWorld()->GetTimerManager().ClearTimer(DamageCauserHandle);
+	DamageCauserHandle.Invalidate();
+}
+
 
 void ATP3ShootCharacter::TouchStarted(ETouchIndex::Type FingerIndex, FVector Location)
 {
